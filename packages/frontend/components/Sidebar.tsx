@@ -7,7 +7,6 @@ import { api } from "../lib/api";
 import {
   BarChartIcon,
   BotIcon,
-  ClipboardIcon,
   BugIcon,
   ChevronDownIcon,
   CompareIcon,
@@ -57,7 +56,6 @@ function projectNavGroups(projectId: string): NavGroup[] {
     {
       label: "Workflow",
       items: [
-        { label: "Requirements", href: `${base}/requirements`, Icon: ClipboardIcon },
         { label: "Test Generation", href: base, Icon: BotIcon, exact: true },
         { label: "Flows", href: `${base}/flows`, Icon: FlowIcon },
         { label: "Environments", href: `${base}/environments`, Icon: SettingsIcon },

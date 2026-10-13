@@ -32,7 +32,6 @@ export default function AuditLogPage() {
 
       {entries.length === 0 && (
         <EmptyState
-          icon="📜"
           title="No audit entries yet"
           description="Membership changes, credential updates, and deletions will show up here."
         />

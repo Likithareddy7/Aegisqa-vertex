@@ -24,8 +24,8 @@ class Services:
   browsers: BrowserSessionManager
   memory: Optional["MemoryService"] = None
   artifacts: Optional["ArtifactStore"] = None
-  # Set when TASK_QUEUE=pubsub: pipeline stages and test runs are published
-  # instead of running in this process.
+  # Set when TASK_QUEUE=pubsub: test runs are published instead of running in
+  # this process.
   publisher: Optional["Publisher"] = None
 
   @property

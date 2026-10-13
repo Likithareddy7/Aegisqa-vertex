@@ -12,7 +12,7 @@ import pytest
 
 from .fakes import FakeBrowsers, call_response, text_response
 from .harness import RunningApp, requires_test_database, sql
-from .test_pipeline import PipelineModel, _test_case
+from .scripted import AppModel, make_test_case
 
 pytestmark = requires_test_database
 
@@ -28,7 +28,7 @@ def _eventually(fetch: Callable[[], Any], check: Callable[[Any], bool], timeout:
 
 @pytest.fixture(scope="module")
 def env() -> Iterator[dict[str, Any]]:
-  model = PipelineModel(model="scripted-memory-model")
+  model = AppModel(model="scripted-memory-model")
   app = RunningApp(model, FakeBrowsers())
   admin = app.client()
   project = admin.post("/api/projects", json={"name": "Memory"}).json()
@@ -45,7 +45,7 @@ def test_learning_loop_and_hybrid_search(env: dict[str, Any]) -> None:
   model.script[:] = [
     call_response(
       "propose_test_cases",
-      {"testCases": [_test_case("Checkout applies a coupon code", [], "Sign in"), _test_case("Profile photo upload", [], "Delete account")]},
+      {"testCases": [make_test_case("Checkout applies a coupon code", "Sign in"), make_test_case("Profile photo upload", "Delete account")]},
     ),
     text_response("Saved."),
   ]

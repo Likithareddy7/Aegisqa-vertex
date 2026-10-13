@@ -83,10 +83,10 @@ async def test_gcs_store_object_names_and_content_types(tmp_path: Path) -> None:
 
 @pytest.fixture(scope="module")
 def app() -> Iterator[dict[str, Any]]:
-  from .test_pipeline import PipelineModel
+  from .scripted import AppModel
 
   store, browsers = MemoryArtifactStore(), FakeBrowsers()
-  running = RunningApp(PipelineModel(model="scripted"), browsers, artifacts=store)
+  running = RunningApp(AppModel(model="scripted"), browsers, artifacts=store)
   admin = running.client()
   project = admin.post("/api/projects", json={"name": "Artifacts"}).json()
   yield {"app": running, "admin": admin, "project": project, "store": store, "browsers": browsers}

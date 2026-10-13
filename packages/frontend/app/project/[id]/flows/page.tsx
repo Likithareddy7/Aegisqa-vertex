@@ -161,7 +161,6 @@ export default function FlowsPage() {
       ))}
       {flows.length === 0 && (
         <EmptyState
-          icon="🔁"
           title="No flows yet"
           description="Create one above, then insert it into any test case from the test case editor's Steps card."
         />

@@ -508,11 +508,7 @@ export type TokenUsageSource =
   | "chat"
   | "failure_explanation"
   | "selector_recovery"
-  | "step_generation"
-  | "requirement_analysis"
-  | "test_retrieval"
-  | "test_generation"
-  | "coverage";
+  | "step_generation";
 
 export interface TokenUsageRecord {
   id: string;
@@ -755,103 +751,5 @@ export type ServerToClientMessage =
   | { type: "run.completed"; testRun: TestRunRecord }
   | { type: "usage.update"; usage: TokenUsageRecord; totals: UsageTotals }
   | { type: "healing.detected"; healingEvent: HealingEventRecord }
-  | { type: "requirement.updated"; requirement: RequirementSummary }
   | { type: "error"; message: string };
-
-// ---------------------------------------------------------------------------
-// Requirement pipeline: requirement -> criteria (requirement agent) -> reused
-// tests (RAG agent) + generated tests for the gaps -> coverage report
-// (coverage agent). Generated test cases are approved with the normal
-// per-test-case review and run like any other test case.
-// ---------------------------------------------------------------------------
-
-export const REQUIREMENT_STATUSES = ["analyzing", "searching", "generating", "scoring", "completed", "failed"] as const;
-export type RequirementStatus = (typeof REQUIREMENT_STATUSES)[number];
-
-export type CriterionKind = "acceptance_criterion" | "scenario" | "edge_case" | "rule";
-
-export interface RequirementSummary {
-  id: string;
-  projectId: string;
-  title: string;
-  status: RequirementStatus;
-  sourceType: "manual" | "azureDevOps";
-  /** The Azure DevOps work item id, when imported from one. */
-  sourceRef: string | null;
-  sourceUrl: string | null;
-  coverageScore: number | null;
-  criteriaCount: number;
-  testCaseCount: number;
-  createdBy: UserSummary | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface RequirementCriterionRecord {
-  id: string;
-  order: number;
-  kind: CriterionKind;
-  /** e.g. "AC1", "S2", "E1", "R3" */
-  code: string;
-  text: string;
-}
-
-export interface RequirementTestCaseRecord {
-  testCaseId: string;
-  title: string;
-  status: TestCaseStatus;
-  priority: TestCasePriority;
-  type: TestCaseType;
-  /** "reused": an existing test the RAG agent matched; "generated": written for this requirement. */
-  origin: "reused" | "generated";
-  criterionIds: string[];
-  rationale: string | null;
-  /** The test case's most recent run, however it was started. */
-  latestRun: { id: string; status: RunStatus } | null;
-}
-
-export interface CriterionCoverageRecord {
-  criterionId: string;
-  code: string;
-  covered: boolean;
-  testCaseIds: string[];
-  gap: string | null;
-}
-
-export interface CoverageReportRecord {
-  id: string;
-  scorePercent: number;
-  summary: string;
-  criteria: CriterionCoverageRecord[];
-  risks: { level: "high" | "medium" | "low"; description: string }[];
-  createdAt: string;
-}
-
-export interface RequirementEventRecord {
-  id: string;
-  stage: string;
-  label: string;
-  detail: string | null;
-  createdAt: string;
-}
-
-export interface RequirementRecord extends RequirementSummary {
-  sourceText: string;
-  /** The requirement agent's short summary. */
-  summary: string | null;
-  failedStage: string | null;
-  error: string | null;
-  environmentId: string | null;
-  criteria: RequirementCriterionRecord[];
-  testCases: RequirementTestCaseRecord[];
-  coverage: CoverageReportRecord | null;
-  events: RequirementEventRecord[];
-}
-
-export interface CreateRequirementInput {
-  title?: string;
-  text?: string;
-  azureDevOpsWorkItemId?: number;
-  environmentId?: string;
-}
 

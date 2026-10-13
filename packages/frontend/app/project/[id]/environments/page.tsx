@@ -201,7 +201,6 @@ export default function EnvironmentsPage() {
       ))}
       {environments.length === 0 && (
         <EmptyState
-          icon="🌐"
           title="No environments yet"
           description="Add one above to run tests against dev, QA, staging, or prod with its own browser and credentials."
         />

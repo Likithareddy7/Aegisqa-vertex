@@ -187,7 +187,6 @@ function HomePageInner() {
 
       {projects?.length === 0 && !creating && (
         <EmptyState
-          icon="🧪"
           title="No projects yet"
           description="Create one to start generating and running tests from a chat."
           action={

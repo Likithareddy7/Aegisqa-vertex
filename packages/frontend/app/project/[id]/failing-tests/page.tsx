@@ -48,7 +48,7 @@ export default function FailingTestsPage() {
       </p>
 
       {tests.length === 0 && (
-        <EmptyState icon="✅" title="No failing tests" description="Everything's passing right now." />
+        <EmptyState title="No failing tests" description="Everything's passing right now." />
       )}
 
       {PRIORITY_ORDER.map((priority) => {

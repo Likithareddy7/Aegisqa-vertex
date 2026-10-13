@@ -12,7 +12,6 @@ import {
   ChevronDownIcon,
   FolderIcon,
   HealIcon,
-  PlugIcon,
   SearchIcon,
   SettingsIcon,
   UsersIcon,
@@ -71,13 +70,6 @@ const SECTIONS: HelpSection[] = [
       "environment named per project config base url browser chromium firefox webkit headless viewport encrypted credentials secrets env key",
   },
   {
-    id: "integrations",
-    category: "Configuration",
-    title: "Integrations (Azure DevOps)",
-    keywords:
-      "integrations azure devops ado work item bug push issue tracker personal access token pat project organization",
-  },
-  {
     id: "selfHealing",
     category: "Configuration",
     title: "Self-healing selectors",
@@ -116,10 +108,6 @@ const SECTIONS: HelpSection[] = [
 
 const FAQS = [
   {
-    q: "How do I turn a user story into test cases?",
-    a: "Open Requirements, paste the story (or import an Azure DevOps work item) and press Start. The agents extract the acceptance criteria, reuse existing tests that already cover them, generate tests for the rest, and score coverage per criterion with any risks flagged. The new test cases are saved as drafts: approve them with the usual review on each test case, then run them like any other test.",
-  },
-  {
     q: "Does the platform change my selectors automatically?",
     a: "No. Self-healing only proposes. Every candidate is logged as a pending suggestion with the old and new selector, a confidence score, and a screenshot, and stays inactive until an owner or admin approves it. Nothing changes silently.",
   },
@@ -155,13 +143,9 @@ const FAQS = [
     q: "Can I run the suite in my own CI pipeline?",
     a: 'Yes. "Export CI package" on the Test Generation page downloads a zip with every test case as a standalone .spec.ts, a Playwright config, and a GitHub Actions workflow — commit it to a repo and it runs as-is.',
   },
-  {
-    q: "Can failed tests automatically become Azure DevOps work items?",
-    a: 'Configure Azure DevOps on a project\'s Integrations page (project owner), then click "Push to Azure DevOps" on a failed run to file one Bug covering every failed step. It won\'t create a duplicate on repeat clicks, and it fails honestly if Azure DevOps isn\'t configured.',
-  },
 ];
 
-const CHIPS = ["Test generation", "Self-healing", "Environments", "Running tests", "CI/CD export", "Azure DevOps"];
+const CHIPS = ["Test generation", "Self-healing", "Environments", "Running tests", "CI/CD export"];
 
 function normalize(s: string): string {
   return s.toLowerCase();
@@ -319,7 +303,6 @@ export default function HelpPage() {
         <div>
           {noResults && (
             <EmptyState
-              icon="🔍"
               title={`No topics match "${query}"`}
               description='Try a shorter or different term — like "selectors", "environments", or "coverage". Still stuck? Reach your workspace admin.'
               action={
@@ -760,60 +743,6 @@ export default function HelpPage() {
                       Encrypted at rest
                     </div>
                   </div>
-                </div>
-              </section>
-            )}
-
-            {show("integrations") && (
-              <section
-                className="help-section"
-                ref={(el) => {
-                  sectionRefs.current.integrations = el;
-                }}
-              >
-                <span className="help-section-badge" style={{ color: "#67e8f9", background: "rgba(6,182,212,.13)" }}>
-                  CONFIGURATION
-                </span>
-                <h2 className="section-title" style={{ fontSize: "1.3rem", textTransform: "none", margin: "11px 0 6px" }}>
-                  Integrations (Azure DevOps)
-                </h2>
-                <p className="muted" style={{ maxWidth: 640, lineHeight: 1.6, marginBottom: 20 }}>
-                  Connect a project to Azure DevOps so a failed run's diagnosis becomes a Bug work item with one
-                  click — no copy-pasting stack traces into a ticket.
-                </p>
-                <div className="grid-2">
-                  <div className="help-card">
-                    <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: "0.78rem", fontWeight: 600 }}>
-                      <PlugIcon size={15} color="var(--info)" strokeWidth={1.8} />
-                      Setting it up
-                    </div>
-                    <div className="muted" style={{ fontSize: "0.72rem", marginTop: 8, lineHeight: 1.55 }}>
-                      On the project's <strong style={{ color: "var(--text)" }}>Integrations</strong> page, the
-                      project owner enters the organization URL (https://dev.azure.com/yourorg), the project name,
-                      and a Personal Access Token with Work Items read &amp; write. The token is encrypted at rest
-                      and never shown back in the UI — everyone else sees read-only status.
-                    </div>
-                  </div>
-                  <div className="help-card">
-                    <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: "0.78rem", fontWeight: 600 }}>
-                      Pushing a failed run
-                    </div>
-                    <div className="muted" style={{ fontSize: "0.72rem", marginTop: 8, lineHeight: 1.55 }}>
-                      On a failed run's results page, click{" "}
-                      <strong style={{ color: "var(--text)" }}>Push to Azure DevOps</strong> to file one Bug
-                      covering every failed step, with its error and suggested fix. The button becomes a{" "}
-                      <strong style={{ color: "var(--text)" }}>View in Azure DevOps</strong> link once filed, and won't
-                      create a duplicate if you click it again.
-                    </div>
-                  </div>
-                </div>
-                <div className="help-callout success" style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 9, padding: "13px 16px" }}>
-                  <CheckIcon size={15} color="var(--success)" strokeWidth={1.9} />
-                  <span style={{ fontSize: "0.78rem", color: "#cbd5e1" }}>
-                    <strong style={{ color: "var(--text)" }}>No configuration, no push.</strong> If Azure DevOps isn't
-                    set up for a project, pushing fails with a clear message instead of pretending an issue was
-                    created.
-                  </span>
                 </div>
               </section>
             )}

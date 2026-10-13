@@ -1,15 +1,13 @@
 """Background work across processes (TASK_QUEUE=pubsub).
 
-  pipeline stages  publish {"requirementId", "stage"} to PUBSUB_PIPELINE_TOPIC
-                   -> push subscription -> POST /internal/pipeline (this backend)
   test runs        publish {"testRunId", "triggeredBy", "options"} to PUBSUB_RUNS_TOPIC
                    -> pull subscription -> `python -m aegisqa.worker` (GKE)
   live progress    the worker POSTs each run event to /internal/events, which
                    forwards it to the browsers watching that project
 
 Every /internal/* call must carry a Google-signed OIDC token for
-INTERNAL_AUDIENCE from one of INTERNAL_INVOKERS -- Pub/Sub push subscriptions
-and GKE Workload Identity both provide one.
+INTERNAL_AUDIENCE from one of INTERNAL_INVOKERS -- GKE Workload Identity
+provides one.
 
 With TASK_QUEUE=inline (local default) none of this is used.
 """
@@ -17,7 +15,6 @@ With TASK_QUEUE=inline (local default) none of this is used.
 from __future__ import annotations
 
 import asyncio
-import base64
 import json
 import logging
 from typing import Any, Awaitable, Callable, Optional, Protocol
@@ -103,25 +100,10 @@ def require_internal_caller(settings: Settings, verifier: Verifier) -> Callable[
 
 
 def internal_router(settings: Settings, verifier: Verifier) -> APIRouter:
-  from . import pipeline
   from .ws import registry
 
   router = APIRouter(prefix="/internal", include_in_schema=False)
   caller = Depends(require_internal_caller(settings, verifier))
-
-  @router.post("/pipeline", dependencies=[caller])
-  async def pipeline_push(request: Request) -> Response:
-    """Pub/Sub push delivery of one pipeline stage. Runs it to completion and
-    acknowledges (2xx) only then, so a crashed instance means redelivery."""
-    body = await request.json()
-    try:
-      payload = json.loads(base64.b64decode(body["message"]["data"]))
-      requirement_id, stage = str(payload["requirementId"]), str(payload["stage"])
-    except (KeyError, ValueError, TypeError) as err:
-      logger.error("pipeline push: unreadable message: %s", err)
-      return Response(status_code=204)  # ack poison messages so they don't loop
-    await pipeline.run_stage(requirement_id, stage)
-    return Response(status_code=204)
 
   @router.post("/events", dependencies=[caller])
   async def run_event(request: Request) -> Response:

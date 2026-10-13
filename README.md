@@ -6,17 +6,12 @@ writes structured test cases, runs them, and shows steps, screenshots, logs, fai
 suggested fixes. Edit and approve test cases, rerun failures, and export any test case as
 a standalone Playwright script.
 
-Or give it a requirement -- a user story pasted in or imported from Azure DevOps -- and an
-agent pipeline extracts the acceptance criteria, reuses existing tests that already cover
-them, generates tests for the gaps, and scores coverage. New test cases are saved as
-drafts for the usual review, then run like any other.
-
 Also included: login with per-project roles and an audit log, named environments with
 encrypted credentials, self-healing selectors with a review queue, console/network log
 and trace/video capture, a reporting dashboard, batched "run all", CSV/JSON data-driven
 runs with secret masking, reusable versioned flows, visual regression (baselines,
-pixel-diffs, approve/reject), CI export (spec zip, CLI runner, JUnit/HTML reports),
-failure webhooks, and pushing failed runs to Azure DevOps.
+pixel-diffs, approve/reject), CI export (spec zip, CLI runner, JUnit/HTML reports) and
+failure webhooks.
 
 ## Architecture
 
@@ -27,12 +22,8 @@ Next.js UI (packages/frontend)
 Python backend (packages/backend) ── FastAPI ───────────────────────────────┐
    │   auth + roles, projects, test cases, runs, reports, exports            │
    │                                                                         │
-   ├── Requirement pipeline (aegisqa/pipeline.py) -- orchestrates:          │
-   │      requirement → RAG reuse → gap generation → coverage report         │
-   │                                                                         │
    ├── Google ADK agents ──► Gemini on Vertex AI                             │
-   │      requirement · test retrieval (RAG) · test generation · coverage    │
-   │      self-healing · failure analysis · step builder                     │
+   │      test generation · self-healing · failure analysis · step builder   │
    │                                                                         │
    ├── Playwright MCP browsers (npx @playwright/mcp, or a remote MCP server) │
    │      chat exploration · test execution                                  │
@@ -42,7 +33,7 @@ Python backend (packages/backend) ── FastAPI ──────────�
    │      keyword: Postgres full-text | Firestore BM25                       │
    │                                                                         │
    ├── Artifacts: local disk | Cloud Storage                                 │
-   ├── Background work: in-process | Pub/Sub (+ GKE worker for test runs)   │
+   ├── Test runs: in-process | Pub/Sub + GKE worker                         │
    │                                                                         │
    └── PostgreSQL (Cloud SQL on GCP) via SQLAlchemy + Alembic ───────────────┘
 ```
@@ -54,19 +45,19 @@ is switched on by environment variables -- see
 
 - **Memory** -- everything the platform learns is remembered as it happens: test cases
   (created, edited, approved), failed runs (with an error code and the suggested fix),
-  approved self-heals, filed defects and coverage reports. Search combines keyword and
-  semantic matching (reciprocal rank fusion). Used by the requirement pipeline's reuse
-  step, by the test generation agent (its `search_project_memory` tool, so it checks
-  what exists before writing tests) and by `GET /api/projects/{id}/memory`. If
+  approved self-heals and filed defects. Search combines keyword and semantic matching
+  (reciprocal rank fusion). Used by the test generation agent (its
+  `search_project_memory` tool, so it checks what exists before writing tests) and by
+  `GET /api/projects/{id}/memory`. If
   embeddings aren't available, it falls back to keyword search.
-- **Background work** -- with `TASK_QUEUE=pubsub`, requirement pipeline stages go
-  through Pub/Sub, and test runs are queued for `python -m aegisqa.worker` (GKE); a run
-  request returns a pending run, and progress streams back live.
+- **Background work** -- with `TASK_QUEUE=pubsub`, test runs go through Pub/Sub to
+  `python -m aegisqa.worker` (GKE); a run request returns a pending run, and progress
+  streams back live.
 
 - **Frontend** -- Next.js (App Router) + React. Talks to the backend over REST and one
   WebSocket per project for chat streaming and live run progress.
 - **Backend** -- Python 3.10+, FastAPI. One service, deployable as one container.
-- **Agents** (`aegisqa/agents/`) -- seven [Google ADK](https://google.github.io/adk-docs/)
+- **Agents** (`aegisqa/agents/`) -- four [Google ADK](https://google.github.io/adk-docs/)
   `LlmAgent`s on Gemini:
   - `test_generation_agent` drives the chat. Its tools are the live Playwright MCP tools
     (via ADK's `McpToolset`; one isolated browser per user per project) plus
@@ -74,21 +65,6 @@ is switched on by environment variables -- see
   - `self_healing_agent` re-locates an element whose selector broke during a run.
   - `failure_analysis_agent` explains a failed step and suggests a fix.
   - `step_builder_agent` turns one instruction into one step in the editor.
-  - `requirement_analysis_agent`, `test_retrieval_agent` (RAG) and `coverage_agent` power
-    the requirement pipeline, below.
-- **Requirement pipeline** (`aegisqa/pipeline.py`, page: *Requirements*) -- one
-  requirement moves through these stages:
-  1. **Analyze:** extract acceptance criteria, scenarios, edge cases and rules.
-  2. **Reuse:** find existing tests that already cover a criterion (Postgres full-text
-     search, then the RAG agent decides; `aegisqa/memory/` is where vector stores plug in).
-  3. **Generate:** the test generation agent explores the app and writes tests for the
-     remaining gaps only, linked to the criteria they cover.
-  4. **Coverage:** the coverage agent scores coverage per criterion and flags risks.
-
-  The pipeline stops there. New test cases are drafts: approve them with the normal
-  per-test-case review and run them as usual. Each test case's latest run shows on the
-  requirement page. Stages run in the background and stream progress over the
-  WebSocket, and a failed stage can be retried.
 - **Execution** (`aegisqa/execution/`) -- replays a test case's steps in a fresh browser.
   Selectors are resilient descriptors (role+name, label, placeholder, text, test id; CSS
   or XPath only as a last resort), re-resolved against a live accessibility snapshot on
@@ -103,7 +79,7 @@ is switched on by environment variables -- see
 - **Privacy**: chat history and the agent's activity timeline are private per user;
   only the test cases a chat produces are shared with the project.
 - **Roles**: a site-wide `admin` (always treated as project owner) or `member`; per
-  project `owner` (members, credentials, integrations), `editor` (create/edit/run),
+  project `owner` (members, credentials), `editor` (create/edit/run),
   `reviewer` (approve/reject -- never your own test case) and `viewer` (read + run).
   Every route checks project membership. Security-relevant actions go to an audit log.
 - **Credentials**: environment credentials and integration tokens are AES-256-GCM
@@ -173,13 +149,12 @@ packages/
       auth/            passwords, sessions, role checks (where SSO plugs in)
       agents/          ADK agents, prompts, tool schemas, browser sessions (McpToolset)
       chat.py          chat turns, the save-test-case tools, one-shot agent calls
-      pipeline.py      requirement pipeline: stages and retries
       memory/          memory layer: stores, hybrid search, learning loop, backfill
       storage.py       artifact storage (local disk or Cloud Storage)
       tasks.py         Pub/Sub publishing and the /internal endpoints
       worker.py        test-run worker for queued execution (GKE)
       execution/       test runner, selector resolution, visual diffs, exporter, reports
-      integrations/    Azure DevOps
+      integrations/    Azure DevOps (API only; no UI)
       db/              models, queries, serializers
       cli/run_tests.py CI runner
       seed.py          first admin login
@@ -222,8 +197,7 @@ npm run typecheck                          # frontend + shared
 - **Live updates and chat browsers are per backend instance.** WebSocket rooms and open
   chat browsers live in process memory, so run one backend instance, or use session
   affinity. See [`docs/GCP_HANDOFF.md`](./docs/GCP_HANDOFF.md). With inline background
-  work, a pipeline stage or run interrupted by a restart is marked failed and can be
-  retried or rerun.
+  work, a run interrupted by a restart is marked failed and can be rerun.
 - **Login is username/password** for now. The client's SSO plugs in at
   `aegisqa/auth/sessions.py`.
 - **"Continue from chat session" needs local browsers.** It reads a file Playwright MCP

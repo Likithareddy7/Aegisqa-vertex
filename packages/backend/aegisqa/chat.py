@@ -22,7 +22,7 @@ from .agents.schemas import FailureExplanation, GeneratedStep, ProposeTestCasesI
 from .config import settings
 from .db import models as m
 from .db import records, test_cases
-from .db.base import new_id, session_scope
+from .db.base import session_scope
 from .errors import describe_validation_error
 from .ws.registry import Emit, chat_emit
 
@@ -53,8 +53,6 @@ async def run_platform_tool(name: str, args: dict[str, Any], context: dict[str, 
           user_id,
           context.get("userText") or None,
         )
-        if context.get("requirementId"):
-          await _link_generated(db, context["requirementId"], created, [tc.coversCriteria for tc in payload.testCases])
         emit({"type": "testcases.proposed", "testCases": created})
         return {"text": f"Saved {len(created)} test case(s): {', '.join(c['title'] for c in created)}.", "isError": False}
 
@@ -80,26 +78,6 @@ async def run_platform_tool(name: str, args: dict[str, Any], context: dict[str, 
   except Exception as err:  # noqa: BLE001 -- reported to the model as a tool error
     logger.exception("platform tool %s failed", name)
     return {"text": f"Failed to apply {name}: {err}", "isError": True}
-
-
-async def _link_generated(db: Any, requirement_id: str, created: list[dict[str, Any]], covers: list[list[str]]) -> None:
-  """Traceability for pipeline-generated test cases: link each to the
-  criteria codes it says it covers (or to the requirement as a whole)."""
-  criteria = (await db.execute(select(m.RequirementCriterion).where(m.RequirementCriterion.requirement_id == requirement_id))).scalars()
-  by_code = {c.code.upper(): c.id for c in criteria}
-  for record, codes in zip(created, covers):
-    criterion_ids = [by_code[code.upper()] for code in codes if code.upper() in by_code] or [None]
-    for criterion_id in dict.fromkeys(criterion_ids):
-      db.add(
-        m.RequirementTestLink(
-          id=new_id(),
-          requirement_id=requirement_id,
-          criterion_id=criterion_id,
-          test_case_id=record["id"],
-          origin="generated",
-        )
-      )
-  await db.flush()
 
 
 class InProcessPlatformClient:

@@ -481,99 +481,6 @@ class IssuePush(Base):
 
 
 # ---------------------------------------------------------------------------
-# Requirement pipeline: requirement -> criteria -> linked test cases
-# (reused + generated) -> coverage report.
-# ---------------------------------------------------------------------------
-
-
-class Requirement(Base):
-  """A user story / ticket going through the agent pipeline. `status` is one
-  of REQUIREMENT_STATUSES in aegisqa/pipeline.py."""
-
-  __tablename__ = "Requirement"
-  __table_args__ = (Index("Requirement_projectId_idx", "projectId"),)
-
-  id: Mapped[str] = _id()
-  project_id: Mapped[str] = _fk("projectId", "Project.id", "CASCADE")
-  title: Mapped[str] = mapped_column("title", Text, nullable=False)
-  source_text: Mapped[str] = mapped_column("sourceText", Text, nullable=False)
-  # "manual" | "azureDevOps"
-  source_type: Mapped[str] = mapped_column("sourceType", Text, nullable=False, server_default=text("'manual'"), default="manual")
-  source_ref: Mapped[Optional[str]] = mapped_column("sourceRef", Text)
-  source_url: Mapped[Optional[str]] = mapped_column("sourceUrl", Text)
-  summary: Mapped[Optional[str]] = mapped_column("summary", Text)
-  status: Mapped[str] = mapped_column("status", Text, nullable=False)
-  failed_stage: Mapped[Optional[str]] = mapped_column("failedStage", Text)
-  error: Mapped[Optional[str]] = mapped_column("error", Text)
-  environment_id: Mapped[Optional[str]] = _fk("environmentId", "Environment.id", "SET NULL", nullable=True)
-  created_by_id: Mapped[Optional[str]] = _fk("createdById", "User.id", "SET NULL", nullable=True)
-  created_at: Mapped[datetime] = _created_at()
-  updated_at: Mapped[datetime] = _updated_at()
-
-
-class RequirementCriterion(Base):
-  """One thing the requirement asks for: an acceptance criterion, scenario,
-  edge case or business rule, as extracted by the requirement agent."""
-
-  __tablename__ = "RequirementCriterion"
-  __table_args__ = (Index("RequirementCriterion_requirementId_idx", "requirementId"),)
-
-  id: Mapped[str] = _id()
-  requirement_id: Mapped[str] = _fk("requirementId", "Requirement.id", "CASCADE")
-  order: Mapped[int] = mapped_column("order", Integer, nullable=False)
-  # "acceptance_criterion" | "scenario" | "edge_case" | "rule"
-  kind: Mapped[str] = mapped_column("kind", Text, nullable=False)
-  code: Mapped[str] = mapped_column("code", Text, nullable=False)  # e.g. "AC1", "E2"
-  text_: Mapped[str] = mapped_column("text", Text, nullable=False)
-
-
-class RequirementTestLink(Base):
-  """Traceability: which test case covers which criterion, and whether it was
-  reused from the project or generated for this requirement."""
-
-  __tablename__ = "RequirementTestLink"
-  __table_args__ = (
-    Index("RequirementTestLink_requirementId_idx", "requirementId"),
-    Index("RequirementTestLink_testCaseId_idx", "testCaseId"),
-  )
-
-  id: Mapped[str] = _id()
-  requirement_id: Mapped[str] = _fk("requirementId", "Requirement.id", "CASCADE")
-  criterion_id: Mapped[Optional[str]] = _fk("criterionId", "RequirementCriterion.id", "CASCADE", nullable=True)
-  test_case_id: Mapped[str] = _fk("testCaseId", "TestCase.id", "CASCADE")
-  origin: Mapped[str] = mapped_column("origin", Text, nullable=False)  # "reused" | "generated"
-  rationale: Mapped[Optional[str]] = mapped_column("rationale", Text)
-  created_at: Mapped[datetime] = _created_at()
-
-
-class CoverageReport(Base):
-  __tablename__ = "CoverageReport"
-  __table_args__ = (Index("CoverageReport_requirementId_idx", "requirementId"),)
-
-  id: Mapped[str] = _id()
-  requirement_id: Mapped[str] = _fk("requirementId", "Requirement.id", "CASCADE")
-  score_percent: Mapped[int] = mapped_column("scorePercent", Integer, nullable=False)
-  summary: Mapped[str] = mapped_column("summary", Text, nullable=False)
-  criteria: Mapped[str] = mapped_column("criteria", Text, nullable=False)  # JSON list, per criterion
-  risks: Mapped[str] = mapped_column("risks", Text, nullable=False)  # JSON list
-  created_at: Mapped[datetime] = _created_at()
-
-
-class RequirementEvent(Base):
-  """The pipeline's activity timeline for one requirement. Append-only."""
-
-  __tablename__ = "RequirementEvent"
-  __table_args__ = (Index("RequirementEvent_requirementId_idx", "requirementId"),)
-
-  id: Mapped[str] = _id()
-  requirement_id: Mapped[str] = _fk("requirementId", "Requirement.id", "CASCADE")
-  stage: Mapped[str] = mapped_column("stage", Text, nullable=False)
-  label: Mapped[str] = mapped_column("label", Text, nullable=False)
-  detail: Mapped[Optional[str]] = mapped_column("detail", Text)
-  created_at: Mapped[datetime] = _created_at()
-
-
-# ---------------------------------------------------------------------------
 # Memory layer (exact store): everything the platform has learned, as one
 # searchable record per item -- see aegisqa/memory/.
 # ---------------------------------------------------------------------------
@@ -582,8 +489,8 @@ EMBEDDING_DIMENSIONS = 768
 
 
 class MemoryRecord(Base):
-  """One remembered item: a test case, a run result, an approved self-heal, a
-  filed defect or a coverage report. `refId` points at the source row (no
+  """One remembered item: a test case, a run result, an approved self-heal or
+  a filed defect. `refId` points at the source row (no
   foreign key: kinds point at different tables, and memory may outlive them).
   `embedding` is null until an embedding model is available."""
 
@@ -597,7 +504,7 @@ class MemoryRecord(Base):
 
   id: Mapped[str] = _id()
   project_id: Mapped[str] = _fk("projectId", "Project.id", "CASCADE")
-  # "test_case" | "run_result" | "healing" | "defect" | "coverage"
+  # "test_case" | "run_result" | "healing" | "defect"
   kind: Mapped[str] = mapped_column("kind", Text, nullable=False)
   ref_id: Mapped[str] = mapped_column("refId", Text, nullable=False)
   title: Mapped[str] = mapped_column("title", Text, nullable=False)

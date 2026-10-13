@@ -2,19 +2,15 @@
 with a Personal Access Token (Basic auth, empty username).
 
 - create_bug:     file a failed run as a Bug work item
-- get_work_item:  import a user story as a requirement
-- add_comment:    post the pipeline's results back on that story
 
 `base_url` is the organization URL (https://dev.azure.com/yourorg) and
-`project` the Azure DevOps project name, as configured on the Integrations page.
+`project` the Azure DevOps project name, as saved with PUT /api/projects/{id}/integrations/azureDevOps.
 """
 
 from __future__ import annotations
 
 import base64
-import re
 from dataclasses import dataclass
-from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import quote
 
@@ -26,15 +22,6 @@ INTEGRATION_TYPE = "azureDevOps"
 @dataclass
 class CreatedIssue:
   key: str
-  url: str
-
-
-@dataclass
-class WorkItem:
-  id: int
-  title: str
-  description: str
-  acceptance_criteria: str
   url: str
 
 
@@ -75,30 +62,6 @@ def _html_from_text(text: str) -> str:
   return escaped.replace("\n", "<br>")
 
 
-class _TextExtractor(HTMLParser):
-  _BREAKS = {"br", "p", "div", "li", "tr", "h1", "h2", "h3", "h4", "ul", "ol"}
-
-  def __init__(self) -> None:
-    super().__init__()
-    self.parts: list[str] = []
-
-  def handle_starttag(self, tag: str, attrs: Any) -> None:
-    if tag in self._BREAKS:
-      self.parts.append("\n")
-    if tag == "li":
-      self.parts.append("- ")
-
-  def handle_data(self, data: str) -> None:
-    self.parts.append(data)
-
-
-def text_from_html(value: str) -> str:
-  parser = _TextExtractor()
-  parser.feed(value or "")
-  text = "".join(parser.parts).replace("\xa0", " ")
-  return re.sub(r"\n\s*\n+", "\n\n", text).strip()
-
-
 async def create_bug(base_url: str, project: str, personal_access_token: str, title: str, description: str) -> CreatedIssue:
   conn = _Connection(base_url, project, personal_access_token)
   body = await conn.request(
@@ -113,24 +76,3 @@ async def create_bug(base_url: str, project: str, personal_access_token: str, ti
   # The response's own `url` is the REST resource; link to the browsable page.
   return CreatedIssue(key=f"#{body['id']}", url=conn.work_item_page(body["id"]))
 
-
-async def get_work_item(base_url: str, project: str, personal_access_token: str, work_item_id: int) -> WorkItem:
-  conn = _Connection(base_url, project, personal_access_token)
-  body = await conn.request("GET", f"_apis/wit/workitems/{work_item_id}?api-version=7.1")
-  fields = body.get("fields", {})
-  return WorkItem(
-    id=int(body["id"]),
-    title=fields.get("System.Title", f"Work item {work_item_id}"),
-    description=text_from_html(fields.get("System.Description", "")),
-    acceptance_criteria=text_from_html(fields.get("Microsoft.VSTS.Common.AcceptanceCriteria", "")),
-    url=conn.work_item_page(int(body["id"])),
-  )
-
-
-async def add_comment(base_url: str, project: str, personal_access_token: str, work_item_id: int, text: str) -> None:
-  conn = _Connection(base_url, project, personal_access_token)
-  await conn.request(
-    "POST",
-    f"_apis/wit/workItems/{work_item_id}/comments?api-version=7.1-preview.4",
-    json={"text": _html_from_text(text)},
-  )

@@ -119,14 +119,6 @@ TEST_CASE_JSON_SCHEMA: dict[str, Any] = {
       ),
     },
     "steps": {"type": "array", "items": STEP_JSON_SCHEMA},
-    "coversCriteria": {
-      "type": "array",
-      "items": {"type": "string"},
-      "description": (
-        "Only when you were given requirement criteria with codes (AC1, S2, E1, R3...): the codes this "
-        "test case verifies. Omit otherwise."
-      ),
-    },
   },
   "required": ["title", "objective", "preconditions", "testData", "expectedResult", "priority", "type", "steps"],
 }
@@ -265,7 +257,6 @@ class TestCaseIn(BaseModel):
   type: TestCaseType
   module: Optional[str] = None
   steps: list[StepIn] = Field(min_length=1)
-  coversCriteria: list[str] = Field(default_factory=list)
 
   def to_dict(self) -> dict[str, Any]:
     return {**self.model_dump(exclude={"steps"}), "steps": [st.to_dict() for st in self.steps]}
@@ -303,50 +294,3 @@ class UpdateTestCaseIn(BaseModel):
   testCaseId: str
   updates: TestCaseUpdatesIn
   summary: str
-
-
-# ---------------------------------------------------------------------------
-# Requirement pipeline agents (structured outputs).
-# ---------------------------------------------------------------------------
-
-CriterionKind = Literal["acceptance_criterion", "scenario", "edge_case", "rule"]
-
-
-class ExtractedCriterion(BaseModel):
-  kind: CriterionKind
-  code: str = Field(description="Short unique code: AC1, AC2... for acceptance criteria, S1.. scenarios, E1.. edge cases, R1.. rules.")
-  text: str = Field(description="One testable statement.")
-
-
-class RequirementAnalysis(BaseModel):
-  summary: str = Field(description="Two or three sentences: what the requirement is about.")
-  criteria: list[ExtractedCriterion]
-
-
-class RetrievalMatch(BaseModel):
-  criterionCode: str
-  testCaseId: str
-  reason: str = Field(description="One sentence: why this existing test verifies the criterion.")
-
-
-class RetrievalJudgement(BaseModel):
-  matches: list[RetrievalMatch]
-
-
-class CriterionCoverage(BaseModel):
-  criterionCode: str
-  covered: bool
-  testCaseIds: list[str]
-  gap: Optional[str] = Field(default=None, description="What is not verified, if anything.")
-
-
-class CoverageRisk(BaseModel):
-  level: Literal["high", "medium", "low"]
-  description: str
-
-
-class CoverageAssessment(BaseModel):
-  summary: str
-  criteria: list[CriterionCoverage]
-  risks: list[CoverageRisk]
-

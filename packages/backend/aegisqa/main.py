@@ -17,9 +17,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from google.adk.models.base_llm import BaseLlm
 
-from . import chat, pipeline, services
+from . import chat, services
 from .agents.browser import BrowserSessionManager
-from .api import auth, flows, projects, requirements, runs, test_cases
+from .api import auth, flows, projects, runs, test_cases
 from .auth.sessions import SESSION_COOKIE_NAME, effective_project_role, user_for_session
 from .config import Settings
 from .storage import AREAS, ArtifactStore, build_artifact_store, content_type_for
@@ -55,7 +55,6 @@ def create_app(
     missing = [
       name
       for name, value in (
-        ("PUBSUB_PIPELINE_TOPIC", settings.pubsub_pipeline_topic),
         ("PUBSUB_RUNS_TOPIC", settings.pubsub_runs_topic),
         ("INTERNAL_AUDIENCE", settings.internal_audience),
         ("INTERNAL_INVOKERS", ",".join(settings.internal_invokers)),
@@ -85,7 +84,6 @@ def create_app(
 
   @asynccontextmanager
   async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    await pipeline.recover_interrupted()
     await executor.recover_interrupted_runs()
     # Bring memory up to date with anything created before it existed.
     backfill_task = asyncio.create_task(_backfill_memory())
@@ -123,10 +121,10 @@ def create_app(
   async def health() -> dict[str, Any]:
     return {"ok": True, "model": services.get().model_name}
 
-  for module in (auth, projects, test_cases, runs, flows, requirements):
+  for module in (auth, projects, test_cases, runs, flows):
     app.include_router(module.router)
-  # Pub/Sub push deliveries and worker progress (only reachable with a valid
-  # Google-signed token from INTERNAL_INVOKERS).
+  # Worker progress (only reachable with a valid Google-signed token from
+  # INTERNAL_INVOKERS).
   app.include_router(internal_router(settings, internal_verifier or google_oidc_verifier(settings)))
 
   # Screenshots, traces/videos and visual-regression images -- from local disk

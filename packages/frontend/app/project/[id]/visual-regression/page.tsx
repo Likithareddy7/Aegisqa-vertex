@@ -44,7 +44,6 @@ export default function VisualRegressionPage() {
 
       {diffs.length === 0 && (
         <EmptyState
-          icon="🖼️"
           title="No pending visual diffs"
           description="Diffs beyond the threshold from assertVisualMatch steps will show up here for review."
         />

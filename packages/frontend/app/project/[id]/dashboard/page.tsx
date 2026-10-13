@@ -23,13 +23,6 @@ const TYPE_COLORS: Record<string, string> = {
   edgeCase: "#f97316",
 };
 
-const ACTIVITY_ICONS: Record<string, string> = {
-  generated: "✨",
-  run_completed: "🏁",
-  healed: "🩹",
-  change_requested: "🚩",
-};
-
 function gaugeColor(value: number): string {
   if (value >= 80) return "var(--success)";
   if (value >= 50) return "var(--warning)";
@@ -240,7 +233,7 @@ export default function DashboardPage() {
           {summary.recentActivity.map((item, i) => (
             <div className="activity-item" key={i}>
               <div className="activity-icon" style={{ background: "var(--surface-2)" }}>
-                {ACTIVITY_ICONS[item.kind] ?? "•"}
+                •
               </div>
               <div style={{ minWidth: 0 }}>
                 {item.href ? (
@@ -361,7 +354,7 @@ export default function DashboardPage() {
       <div className="card" style={{ marginBottom: 20 }}>
         <h2 className="section-title">All test cases</h2>
         {testCases && testCases.length === 0 && (
-          <EmptyState icon="📋" title="No test cases yet" description="Ask the agent in chat to generate some." />
+          <EmptyState title="No test cases yet" description="Ask the agent in chat to generate some." />
         )}
         {testCases && testCases.length > 0 && (
           <>

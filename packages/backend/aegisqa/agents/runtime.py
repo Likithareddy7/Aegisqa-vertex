@@ -24,7 +24,6 @@ from .browser import BrowserConfig, BrowserSessionManager
 from .platform_tools import (
   PLATFORM_TOOL_NAMES,
   STATE_PROJECT_ID,
-  STATE_REQUIREMENT_ID,
   STATE_TARGET_URL,
   STATE_URL_ID,
   STATE_USER_ID,
@@ -97,8 +96,6 @@ class ChatTurnRequest(BaseModel):
   history: list[dict[str, str]] = []
   browserSessionKey: str
   browserConfig: Optional[dict[str, Any]] = None
-  # Set when the requirement pipeline (not a chat) runs the agent.
-  requirementId: Optional[str] = None
 
 
 async def run_chat_turn(
@@ -154,7 +151,6 @@ async def run_chat_turn(
       STATE_USER_ID: request.userId,
       STATE_URL_ID: request.urlId,
       STATE_USER_TEXT: request.userText,
-      STATE_REQUIREMENT_ID: request.requirementId,
     },
   )
   # The database is the source of truth for chat history; replay it into

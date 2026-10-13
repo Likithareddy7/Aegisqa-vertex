@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import type { IntegrationType, RunStatus, ServerToClientMessage, TestRunRecord } from "@testingmcp/shared";
+import type { RunStatus, ServerToClientMessage, TestRunRecord } from "@testingmcp/shared";
 import { api } from "../../../../../lib/api";
 import { StatusBadge } from "../../../../../components/StatusBadge";
 import { SkeletonBlock } from "../../../../../components/Skeleton";
@@ -12,10 +12,6 @@ import { formatElapsed, useTick } from "../../../../../lib/useElapsedTime";
 
 type Tab = "steps" | "console" | "network" | "trace";
 
-const TRACKER_LABELS: Record<IntegrationType, string> = {
-  azureDevOps: "Azure DevOps",
-};
-
 const LIVE_STATUSES: RunStatus[] = ["pending", "running"];
 
 export default function RunDashboardPage() {
@@ -23,21 +19,14 @@ export default function RunDashboardPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const [run, setRun] = useState<TestRunRecord | null>(null);
-  const [configuredTrackers, setConfiguredTrackers] = useState<IntegrationType[]>([]);
   const [rerunning, setRerunning] = useState(false);
   const [resumingStepOrder, setResumingStepOrder] = useState<number | null>(null);
-  const [pushingTo, setPushingTo] = useState<IntegrationType | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("steps");
 
   useEffect(() => {
     api.getTestRun(params.runId).then(setRun);
-    api.getIntegrations(params.id).then((integrations) => {
-      setConfiguredTrackers(
-        (Object.keys(integrations) as IntegrationType[]).filter((type) => integrations[type]),
-      );
-    });
-  }, [params.runId, params.id]);
+  }, [params.runId]);
 
   // Live updates while this run is still going -- without this, a run
   // started from another page lands here frozen at "pending" until the user
@@ -102,26 +91,6 @@ export default function RunDashboardPage() {
     }
   }
 
-  async function handlePushToTracker(type: IntegrationType) {
-    setPushingTo(type);
-    setError(null);
-    try {
-      const push = await api.pushRunToTracker(params.runId, type);
-      setRun((prev) =>
-        prev ? { ...prev, issuePushes: [push, ...prev.issuePushes.filter((p) => p.type !== type)] } : prev,
-      );
-      if (push.status === "pushed") {
-        showToast(`Pushed to ${TRACKER_LABELS[type]}.`);
-      } else {
-        setError(push.errorMessage ?? `Failed to push to ${TRACKER_LABELS[type]}.`);
-      }
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setPushingTo(null);
-    }
-  }
-
   if (!run) return <SkeletonBlock lines={6} />;
 
   const hasFailure = run.status === "failed" || run.status === "error";
@@ -150,27 +119,6 @@ export default function RunDashboardPage() {
             {rerunning ? "Rerunning..." : "Rerun test"}
           </button>
         )}
-        {hasFailure &&
-          configuredTrackers.map((type) => {
-            const push = run.issuePushes.find((p) => p.type === type);
-            if (push?.status === "pushed" && push.issueUrl) {
-              return (
-                <a key={type} className="btn" href={push.issueUrl} target="_blank" rel="noreferrer">
-                  View in {TRACKER_LABELS[type]} ↗
-                </a>
-              );
-            }
-            return (
-              <button
-                key={type}
-                className="btn"
-                onClick={() => handlePushToTracker(type)}
-                disabled={pushingTo !== null}
-              >
-                {pushingTo === type ? "Pushing..." : `Push to ${TRACKER_LABELS[type]}`}
-              </button>
-            );
-          })}
         <span className="muted">
           Started {new Date(run.startedAt).toLocaleString()}
           {run.finishedAt && ` · Finished ${new Date(run.finishedAt).toLocaleString()}`}

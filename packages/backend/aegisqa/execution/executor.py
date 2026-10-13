@@ -851,10 +851,10 @@ async def send_failure_webhook(run: dict[str, Any], test_case_title: str) -> Non
   failed = next((r for r in run["results"] if r["status"] in ("failed", "error")), None)
   short_id = run["id"][-8:]
   text = (
-    f'❌ Test run failed: "{test_case_title}" (run {short_id}) — step {failed["stepOrder"]}: '
+    f'Test run failed: "{test_case_title}" (run {short_id}) — step {failed["stepOrder"]}: '
     f'{failed["errorMessage"] or "no error message"}'
     if failed
-    else f'❌ Test run {run["status"]}: "{test_case_title}" (run {short_id})'
+    else f'Test run {run["status"]}: "{test_case_title}" (run {short_id})'
   )
   payload = {
     "text": text,

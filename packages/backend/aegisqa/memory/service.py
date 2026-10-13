@@ -33,7 +33,7 @@ from .vector_search import VectorSearchClient
 logger = logging.getLogger(__name__)
 
 RRF_K = 60
-KINDS = ("test_case", "run_result", "healing", "defect", "coverage")
+KINDS = ("test_case", "run_result", "healing", "defect")
 
 
 @dataclass

@@ -1,5 +1,4 @@
-"""Filing a failed test run as an Azure DevOps Bug -- used by the "Push to
-Azure DevOps" button and automatically by the requirement pipeline."""
+"""Filing a failed test run as an Azure DevOps Bug (POST /api/testruns/{id}/push-to/azureDevOps)."""
 
 from __future__ import annotations
 

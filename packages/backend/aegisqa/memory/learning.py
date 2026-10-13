@@ -5,7 +5,6 @@ it's (re)written to memory --
   test run failed                         -> run_result   (error code + suggested fix)
   self-heal approved                      -> healing      (old -> new locator for an element)
   defect filed in Azure DevOps            -> defect
-  coverage report produced                -> coverage
 
 Call `remember(db, kind, ref_id)` (or `forget`) inside the transaction that
 made the change. The memory write runs only after that transaction commits,
@@ -226,33 +225,11 @@ async def _defect(db: AsyncSession, ref_id: str) -> Optional[MemoryItem]:
   )
 
 
-async def _coverage(db: AsyncSession, ref_id: str) -> Optional[MemoryItem]:
-  report = await db.get(m.CoverageReport, ref_id)
-  req = await db.get(m.Requirement, report.requirement_id) if report else None
-  if report is None or req is None:
-    return None
-  criteria = json.loads(report.criteria)
-  risks = json.loads(report.risks)
-  gaps = [f"{c['code']}: {c['gap']}" for c in criteria if not c.get("covered") and c.get("gap")]
-  return MemoryItem(
-    project_id=req.project_id,
-    kind="coverage",
-    ref_id=report.id,
-    title=f"Coverage {report.score_percent}%: {req.title}",
-    content=(
-      f"Requirement: {req.title}\n{report.summary}\nGaps:\n" + "\n".join(gaps or ["none"]) + "\nRisks:\n"
-      + "\n".join(f"[{r['level']}] {r['description']}" for r in risks)
-    ),
-    metadata={"requirementId": req.id, "scorePercent": report.score_percent},
-  )
-
-
 _BUILDERS: dict[str, Any] = {
   "test_case": _test_case,
   "run_result": _run_result,
   "healing": _healing,
   "defect": _defect,
-  "coverage": _coverage,
 }
 
 
@@ -274,16 +251,13 @@ async def backfill(project_id: Optional[str] = None, kinds: tuple[str, ...] = ("
     .join(m.TestRun, m.TestRun.id == m.IssuePush.test_run_id)
     .join(m.TestCase, m.TestCase.id == m.TestRun.test_case_id)
     .where(m.IssuePush.status == "pushed"),
-    "coverage": select(m.CoverageReport.id, m.Requirement.project_id).join(
-      m.Requirement, m.Requirement.id == m.CoverageReport.requirement_id
-    ),
   }
   count = 0
   for kind in kinds:
     async with session_scope() as db:
       query = queries[kind]
       if project_id:
-        query = query.where(m.TestCase.project_id == project_id if kind != "coverage" else m.Requirement.project_id == project_id)
+        query = query.where(m.TestCase.project_id == project_id)
       rows = (await db.execute(query)).all()
       known = set(
         (await db.execute(select(m.MemoryRecord.ref_id).where(m.MemoryRecord.kind == kind))).scalars()

@@ -56,7 +56,6 @@ export default function HealingEventsPage() {
 
       {events.length === 0 && (
         <EmptyState
-          icon="🩹"
           title="No pending suggestions"
           description="Selector recoveries that happen during test runs will show up here for review."
         />

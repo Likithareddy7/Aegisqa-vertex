@@ -1,8 +1,6 @@
 """Agent instructions. TEST_GENERATION_INSTRUCTION is ported verbatim from the
 original TypeScript backend's system prompt."""
 
-from typing import Any
-
 TEST_GENERATION_INSTRUCTION = """You are an expert QA test automation architect embedded in a chat-driven test
 authoring tool. You have live access to a real browser through Playwright MCP tools
 (browser_navigate, browser_snapshot, browser_click, browser_type, browser_select_option,
@@ -154,70 +152,3 @@ def step_builder_prompt(instruction: str, page_snapshot: str) -> str:
     "Omit selector (return null) for actions that don't target an element (navigate, waitFor, "
     f"assertUrl, screenshot).\n\nPage snapshot:\n{page_snapshot[:8000]}"
   )
-
-
-# ---------------------------------------------------------------------------
-# Requirement pipeline agents.
-# ---------------------------------------------------------------------------
-
-REQUIREMENT_ANALYSIS_INSTRUCTION = (
-  "You are a senior QA analyst. Read a requirement (a user story, ticket or specification) and break it "
-  "into testable statements:\n"
-  "- acceptance_criterion: each explicit acceptance criterion, plus any clearly implied one (code AC1, AC2...)\n"
-  "- scenario: the main user flows worth testing end to end (S1, S2...)\n"
-  "- edge_case: boundaries, invalid input, empty/long values, error handling (E1, E2...)\n"
-  "- rule: business rules or precise conditions stated by the user, e.g. limits, formats, permissions (R1, R2...)\n"
-  "Keep each statement short, specific and verifiable in a browser. Don't invent features the requirement "
-  "doesn't mention. Return strict JSON matching the schema."
-)
-
-TEST_RETRIEVAL_INSTRUCTION = (
-  "You check whether a project's existing test cases already verify a requirement's criteria, so no "
-  "duplicate tests get written. You are given the criteria and candidate test cases found by search. A "
-  "candidate matches a criterion only if its steps and expected result would actually verify that "
-  "criterion -- a related topic is not enough. Use only the test case ids you were given. Return strict JSON; "
-  "an empty `matches` list is a valid answer."
-)
-
-COVERAGE_INSTRUCTION = (
-  "You are a QA lead assessing test coverage before execution. For every criterion of the requirement, decide "
-  "whether the linked test cases genuinely verify it (their steps and expected results, not just their "
-  "titles), list the ids of those that do, and describe any gap. Then flag risk areas: untested criteria, "
-  "weak assertions, missing negative or edge cases, or flows that depend on data or state the tests don't "
-  "set up. Return strict JSON matching the schema, with one entry per criterion."
-)
-
-
-def requirement_analysis_prompt(title: str, text: str) -> str:
-  return f"Requirement title: {title}\n\nRequirement:\n{text[:20000]}"
-
-
-def test_retrieval_prompt(criteria: list[dict[str, str]], candidates: list[dict[str, str]]) -> str:
-  criteria_text = "\n".join(f"- {c['code']} ({c['kind']}): {c['text']}" for c in criteria)
-  candidate_text = "\n\n".join(
-    f"[{c['id']}] {c['title']}\nObjective: {c['objective']}\nExpected: {c['expectedResult']}\nSteps: {c['steps']}"
-    for c in candidates
-  )
-  return f"Criteria:\n{criteria_text}\n\nCandidate existing test cases:\n{candidate_text}"[:30000]
-
-
-def gap_generation_message(title: str, summary: str, criteria: list[dict[str, str]]) -> str:
-  criteria_text = "\n".join(f"- {c['code']} ({c['kind']}): {c['text']}" for c in criteria)
-  return (
-    f'Generate test cases for this requirement: "{title}".\n{summary}\n\n'
-    "These criteria are not covered by any existing test yet -- write at least one test case for each, "
-    "and set `coversCriteria` on every test case to the codes it verifies:\n"
-    f"{criteria_text}\n\n"
-    "Inspect the real page before writing selectors, then save everything with one propose_test_cases call."
-  )
-
-
-def coverage_prompt(criteria: list[dict[str, str]], test_cases: list[dict[str, Any]]) -> str:
-  criteria_text = "\n".join(f"- {c['code']} ({c['kind']}): {c['text']}" for c in criteria)
-  tests_text = "\n\n".join(
-    f"[{t['id']}] {t['title']} (linked to: {', '.join(t['linkedCriteria']) or 'no specific criterion'})\n"
-    f"Objective: {t['objective']}\nExpected: {t['expectedResult']}\nSteps:\n"
-    + "\n".join(f"  {s['order']}. {s['action']} -- {s['description']}" for s in t["steps"])
-    for t in test_cases
-  )
-  return f"Criteria:\n{criteria_text}\n\nLinked test cases:\n{tests_text}"[:40000]

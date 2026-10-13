@@ -107,17 +107,15 @@ class Settings:
   google_cloud_location: str = field(default_factory=lambda: os.environ.get("GOOGLE_CLOUD_LOCATION", "global"))
 
   # --- Task queue (Pub/Sub) ---
-  # "inline": pipeline stages and test runs execute inside this process (local, default).
-  # "pubsub": pipeline stages go through PUBSUB_PIPELINE_TOPIC (push subscription ->
-  # POST /internal/pipeline) and test runs through PUBSUB_RUNS_TOPIC, consumed by
+  # "inline": test runs execute inside this process (local, default).
+  # "pubsub": test runs go through PUBSUB_RUNS_TOPIC, consumed by
   # `python -m aegisqa.worker` (GKE) from PUBSUB_RUNS_SUBSCRIPTION.
   task_queue: str = field(default_factory=lambda: os.environ.get("TASK_QUEUE", "inline").lower())
-  pubsub_pipeline_topic: str = field(default_factory=lambda: os.environ.get("PUBSUB_PIPELINE_TOPIC", ""))
   pubsub_runs_topic: str = field(default_factory=lambda: os.environ.get("PUBSUB_RUNS_TOPIC", ""))
   pubsub_runs_subscription: str = field(default_factory=lambda: os.environ.get("PUBSUB_RUNS_SUBSCRIPTION", ""))
   # Service-to-service calls into /internal/* carry a Google-signed OIDC token
   # whose audience is INTERNAL_AUDIENCE (the backend's URL) and whose email is
-  # one of INTERNAL_INVOKERS (the Pub/Sub push and worker service accounts).
+  # one of INTERNAL_INVOKERS (the worker's service account).
   internal_audience: str = field(default_factory=lambda: os.environ.get("INTERNAL_AUDIENCE", ""))
   internal_invokers: list[str] = field(
     default_factory=lambda: [e.strip() for e in os.environ.get("INTERNAL_INVOKERS", "").split(",") if e.strip()]

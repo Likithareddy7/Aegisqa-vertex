@@ -1,6 +1,6 @@
 """`search_project_memory`: lets the test generation agent check what the
 platform already knows before writing tests -- existing test cases, past
-failures, elements whose locators changed, defects and coverage gaps."""
+failures, elements whose locators changed and filed defects."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ MEMORY_TOOL_NAME = "search_project_memory"
 async def search_project_memory(query: str, tool_context: ToolContext) -> dict[str, Any]:
   """Search this project's memory: existing test cases, past test failures (with
   error codes and suggested fixes), approved self-heals (elements whose locators
-  changed), filed defects and coverage reports. Use it before writing new test
+  changed) and filed defects. Use it before writing new test
   cases so you don't duplicate existing ones, and to learn about known problems
   on the page.
 

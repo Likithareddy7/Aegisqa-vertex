@@ -26,8 +26,6 @@ STATE_USER_ID = "user_id"
 STATE_URL_ID = "url_id"
 STATE_USER_TEXT = "user_text"
 STATE_TARGET_URL = "target_url"
-# Set only when the agent runs inside the requirement pipeline.
-STATE_REQUIREMENT_ID = "requirement_id"
 
 
 class PlatformClient(Protocol):
@@ -55,8 +53,6 @@ class PlatformTool(BaseTool):
       "urlId": state.get(STATE_URL_ID),
       "userText": state.get(STATE_USER_TEXT, ""),
     }
-    if state.get(STATE_REQUIREMENT_ID):
-      context["requirementId"] = state.get(STATE_REQUIREMENT_ID)
     try:
       result = await self._client.call_tool(self.name, context, args)
     except Exception as err:  # noqa: BLE001 -- surfaced to the model as a tool error

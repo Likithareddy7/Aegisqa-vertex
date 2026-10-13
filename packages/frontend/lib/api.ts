@@ -4,7 +4,6 @@ import type {
   AuditLogEntryRecord,
   ChangeRequestRecord,
   ChatMessageRecord,
-  CreateRequirementInput,
   DashboardSummary,
   EnvironmentInput,
   EnvironmentRecord,
@@ -14,15 +13,9 @@ import type {
   FlowSummary,
   FlowVersionRecord,
   HealingEventRecord,
-  IntegrationInput,
-  IntegrationSummary,
-  IntegrationType,
-  IssuePushRecord,
   ProjectMemberRecord,
   ProjectRecord,
   ProjectRole,
-  RequirementRecord,
-  RequirementSummary,
   ReportsSummary,
   TestCaseRecord,
   TestDataSetRecord,
@@ -142,16 +135,6 @@ export const api = {
       body: JSON.stringify({ values }),
     }),
 
-  getIntegrations: (projectId: string) =>
-    request<Record<IntegrationType, IntegrationSummary | null>>(`/api/projects/${projectId}/integrations`),
-  updateIntegration: (projectId: string, type: IntegrationType, input: IntegrationInput) =>
-    request<IntegrationSummary>(`/api/projects/${projectId}/integrations/${type}`, {
-      method: "PUT",
-      body: JSON.stringify(input),
-    }),
-  pushRunToTracker: (runId: string, type: IntegrationType) =>
-    request<IssuePushRecord>(`/api/testruns/${runId}/push-to/${type}`, { method: "POST" }),
-
   listHealingEvents: (projectId: string) =>
     request<HealingEventRecord[]>(`/api/healing-events?projectId=${projectId}`),
   approveHealingEvent: (id: string, makePrimary: boolean) =>
@@ -255,17 +238,6 @@ export const api = {
   screenshotUrl: (filePath: string) => `${API_BASE_URL}/screenshots/${filePath}`,
   artifactUrl: (filePath: string) => `${API_BASE_URL}/artifacts/${filePath}`,
   visualRegressionUrl: (filePath: string) => `${API_BASE_URL}/visual-regression/${filePath}`,
-
-  listRequirements: (projectId: string) =>
-    request<RequirementSummary[]>(`/api/projects/${projectId}/requirements`),
-  createRequirement: (projectId: string, input: CreateRequirementInput) =>
-    request<RequirementRecord>(`/api/projects/${projectId}/requirements`, {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
-  getRequirement: (id: string) => request<RequirementRecord>(`/api/requirements/${id}`),
-  retryRequirement: (id: string) => request<RequirementRecord>(`/api/requirements/${id}/retry`, { method: "POST" }),
-  deleteRequirement: (id: string) => request<void>(`/api/requirements/${id}`, { method: "DELETE" }),
 
   listVisualDiffs: (projectId: string) =>
     request<VisualDiffRecord[]>(`/api/visual-diffs?projectId=${projectId}`),

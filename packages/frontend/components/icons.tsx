@@ -73,7 +73,7 @@ export const HealIcon = (p: IconProps) => (
   </Svg>
 );
 
-/** Plug glyph -- external integrations (Azure DevOps). */
+/** Plug glyph -- external integrations. */
 export const PlugIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M9 2v4M15 2v4M7 8h10l-1 5a4 4 0 0 1-4 3.5A4 4 0 0 1 8 13z" />
@@ -201,14 +201,5 @@ export const CheckIcon = (p: IconProps) => (
 export const XIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M18 6 6 18M6 6l12 12" />
-  </Svg>
-);
-
-/** Clipboard with a check -- requirements / user stories. */
-export const ClipboardIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <rect x="5" y="4" width="14" height="17" rx="2" />
-    <path d="M9 4.5V3.5A1.5 1.5 0 0 1 10.5 2h3A1.5 1.5 0 0 1 15 3.5v1" />
-    <path d="m9 13 2 2 4-4" />
   </Svg>
 );

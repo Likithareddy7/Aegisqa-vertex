@@ -4,8 +4,8 @@ embedding column, a full-text index and an HNSW similarity index.
 Needs the `vector` extension -- available on Cloud SQL for PostgreSQL; locally
 `brew install pgvector`.
 
-Revision ID: 0004_memory
-Revises: 0003_remove_gates
+Revision ID: 0002_memory
+Revises: 0001_baseline
 """
 
 import sqlalchemy as sa
@@ -13,8 +13,8 @@ from alembic import op
 from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects import postgresql
 
-revision = "0004_memory"
-down_revision = "0003_remove_gates"
+revision = "0002_memory"
+down_revision = "0001_baseline"
 branch_labels = None
 depends_on = None
 

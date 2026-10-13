@@ -21,7 +21,6 @@ check `GET /api/health` first.
 
 ```
 browser ──HTTPS / WSS──▶ web, backend (/api/*, /ws, /screenshots/*, /artifacts/*, /visual-regression/*)
-backend ──publish──▶ Pub/Sub  aegisqa-pipeline ──push (OIDC)──▶ backend /internal/pipeline
 backend ──publish──▶ Pub/Sub  aegisqa-runs ──pull──▶ worker ──POST (OIDC)──▶ backend /internal/events
 backend, worker ──▶ Cloud SQL (PostgreSQL + pgvector) · Vertex AI (Gemini, embeddings, Vector Search)
                 ──▶ Cloud Storage (artifacts) · Firestore (BM25 keyword index)
@@ -37,17 +36,15 @@ backend, worker ──▶ staging app under test (headless Chromium via Playwrig
 | **Vector Search index** | Dimensions **768**, distance **COSINE_DISTANCE**, update method **STREAM_UPDATE**. Deploy it to an index endpoint (public, or Private Service Connect). Restrict namespaces used: `project`, `kind`. |
 | **Firestore** (Native mode) | Composite index on collection **`aegisqa_bm25_docs`**: `projectId` ASC + `terms` ARRAY_CONTAINS. The prefix follows `FIRESTORE_COLLECTION_PREFIX`. Collections are created on first write. |
 | **Cloud Storage bucket** | Private (no public access). Holds `screenshots/`, `artifacts/` (traces, videos) and `visual-regression/`. The backend streams files to users, so no signed URLs are needed. |
-| **Pub/Sub** | Two topics and two subscriptions, below. |
+| **Pub/Sub** | One topic and one subscription, below. |
 
 ### Pub/Sub
 
 | Topic | Subscription | Type | Settings |
 |---|---|---|---|
-| `aegisqa-pipeline` | `aegisqa-pipeline-push` | **Push** to `https://<backend>/internal/pipeline` | Authentication: OIDC token from the push service account, audience = `INTERNAL_AUDIENCE`. Ack deadline **600 s**: a stage is acknowledged when it finishes, usually well under 10 minutes. Exponential retry. A dead-letter topic is recommended. |
 | `aegisqa-runs` | `aegisqa-runs-worker` | **Pull**, by the worker | Ack deadline 600 s; the client extends leases while a run is going. A dead-letter topic is recommended. |
 
-Redelivered messages are safe: a run that has already started is skipped, and so is a
-pipeline stage the requirement has already passed.
+Redelivered messages are safe: a run that has already started is skipped.
 
 ## Service accounts and roles
 
@@ -55,11 +52,9 @@ pipeline stage the requirement has already passed.
 |---|---|
 | **backend** (Cloud Run) | `roles/cloudsql.client`, `roles/aiplatform.user`, `roles/datastore.user`, `roles/pubsub.publisher`, `roles/storage.objectAdmin` on the bucket |
 | **worker** (GKE, via Workload Identity) | `roles/cloudsql.client`, `roles/aiplatform.user`, `roles/datastore.user`, `roles/pubsub.subscriber` on `aegisqa-runs-worker`, `roles/storage.objectAdmin` on the bucket |
-| **pubsub-push** (signs push requests) | No roles of its own. The Pub/Sub service agent needs `roles/iam.serviceAccountTokenCreator` on it. |
 
-`INTERNAL_INVOKERS` lists the emails of **pubsub-push** and **worker**. The backend accepts
-`/internal/*` calls only with a Google-signed ID token for `INTERNAL_AUDIENCE` from one of
-those accounts. Block `/internal/*` at the load balancer / Apigee too.
+`INTERNAL_INVOKERS` is the **worker** account's email. The backend accepts `/internal/*`
+calls only with a Google-signed ID token for `INTERNAL_AUDIENCE` from that account. Block `/internal/*` at the load balancer / Apigee too.
 
 ## Environment variables
 
@@ -80,9 +75,9 @@ Manager.
 | `FIRESTORE_DATABASE`, `FIRESTORE_COLLECTION_PREFIX` | `(default)` / `aegisqa` |
 | `ARTIFACT_STORAGE`, `ARTIFACTS_BUCKET` | `gcs` / bucket name |
 | `TASK_QUEUE` | `pubsub` |
-| `PUBSUB_PIPELINE_TOPIC`, `PUBSUB_RUNS_TOPIC` | `projects/P/topics/aegisqa-pipeline`, `projects/P/topics/aegisqa-runs` |
+| `PUBSUB_RUNS_TOPIC` | `projects/P/topics/aegisqa-runs` |
 | `INTERNAL_AUDIENCE` | The backend's URL |
-| `INTERNAL_INVOKERS` | pubsub-push and worker service-account emails, comma-separated |
+| `INTERNAL_INVOKERS` | The worker service account's email |
 | `MAX_PARALLEL_RUNS` | Worker: runs at once per pod. |
 | `PLAYWRIGHT_HEADLESS` | `true` |
 
@@ -112,17 +107,14 @@ project.
 ## Things that affect how you configure it
 
 1. **Request durations.**
-   - `/internal/pipeline` holds a request for the length of a stage (minutes), so set the
-     backend's request timeout to at least **600 s**.
    - With `TASK_QUEUE=pubsub`, test-run requests return immediately.
    - Chat streams over the WebSocket for as long as the agent works. Allow WebSockets
      through the load balancer / Apigee, and don't buffer responses.
 2. **One backend instance, or session affinity.** WebSocket rooms and each user's open
    chat browser live in the memory of the backend instance serving them. Run events from
    workers are forwarded to *the instance that receives them*. Start with
-   `min-instances=1, max-instances=1` (also keeps scale-to-zero from cutting off a pipeline
-   stage). Scaling the backend out needs a shared event fan-out (e.g. Memorystore Redis),
-   which is code work.
+   `min-instances=1, max-instances=1`. Scaling the backend out needs a shared event
+   fan-out (e.g. Memorystore Redis), which is code work.
 3. **Browsers.**
    - The backend still runs headless Chromium for chat exploration and quick-add step:
      budget ~1 vCPU / 1 GB per concurrent chat, plus 1 GB `/dev/shm`.
@@ -164,6 +156,3 @@ project.
 5. Run a test case. The API returns a *pending* run, the worker picks it up, and the run
    page fills in live. Screenshots load from Cloud Storage. A failing step should get a
    suggested fix from Gemini.
-6. On *Requirements*, start one with a short user story. It should reach "Completed" with
-   criteria, test cases and a coverage score. Each stage shows in the
-   `aegisqa-pipeline-push` subscription's delivery metrics.

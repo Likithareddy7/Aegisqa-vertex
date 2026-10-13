@@ -34,7 +34,6 @@ export function TestCaseList({ testCases, onOpen, onRun, runningIds }: TestCaseL
   if (testCases.length === 0) {
     return (
       <EmptyState
-        icon="📋"
         title="No test cases yet"
         description="Ask the agent in chat to generate some."
       />

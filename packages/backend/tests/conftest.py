@@ -23,6 +23,5 @@ os.environ["VISUAL_REGRESSION_DIR"] = os.path.join(_scratch, "visual-regression"
 os.environ["WEBHOOK_URL"] = ""
 # Used by the queued-execution tests (TASK_QUEUE stays "inline" by default).
 os.environ["INTERNAL_AUDIENCE"] = "https://backend.test"
-os.environ["INTERNAL_INVOKERS"] = "pubsub-push@test.iam,worker@test.iam"
-os.environ["PUBSUB_PIPELINE_TOPIC"] = "projects/test/topics/pipeline"
+os.environ["INTERNAL_INVOKERS"] = "worker@test.iam"
 os.environ["PUBSUB_RUNS_TOPIC"] = "projects/test/topics/runs"

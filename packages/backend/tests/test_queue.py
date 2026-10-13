@@ -1,12 +1,11 @@
 """Queued execution (TASK_QUEUE=pubsub) without Pub/Sub: a loopback publisher
-delivers pipeline messages to the real push endpoint over HTTP and run
-messages to the real worker code, whose progress events come back through
-the real /internal/events endpoint. Internal-call auth is checked throughout."""
+delivers run messages to the real worker code, whose progress events come
+back through the real /internal/events endpoint. Internal-call auth is
+checked throughout."""
 
 from __future__ import annotations
 
 import asyncio
-import base64
 import json
 import time
 from typing import Any, Iterator, Optional
@@ -16,11 +15,13 @@ import pytest
 
 from .fakes import FakeBrowsers
 from .harness import RunningApp, requires_test_database, sql
-from .test_pipeline import REUSED_ID, PipelineModel
+from .scripted import AppModel
 
 pytestmark = requires_test_database
 
-TOKENS = {"push-token": "pubsub-push@test.iam", "worker-token": "worker@test.iam", "intruder-token": "someone@else.iam"}
+REUSED_ID = "existing-wrong-password-test"
+
+TOKENS = {"worker-token": "worker@test.iam", "intruder-token": "someone@else.iam"}
 
 
 async def verifier(token: str) -> Optional[str]:
@@ -48,27 +49,21 @@ class LoopbackPublisher:
 
   async def _deliver(self, topic: str, payload: dict[str, Any]) -> None:
     await asyncio.sleep(0.05)
-    if topic.endswith("/pipeline"):
-      envelope = {"message": {"data": base64.b64encode(json.dumps(payload).encode()).decode(), "messageId": "1"}}
-      async with httpx.AsyncClient(base_url=self.base_url, timeout=60) as client:
-        response = await client.post("/internal/pipeline", json=envelope, headers={"Authorization": "Bearer push-token"})
-        assert response.status_code == 204, response.text
-    else:
-      from aegisqa import worker
+    from aegisqa import worker
 
-      if self.forwarder is None:
+    if self.forwarder is None:
 
-        async def token() -> str:
-          return "worker-token"
+      async def token() -> str:
+        return "worker-token"
 
-        self.forwarder = worker.EventForwarder(self.base_url, token)
-      await worker.handle(payload, self.forwarder)
+      self.forwarder = worker.EventForwarder(self.base_url, token)
+    await worker.handle(payload, self.forwarder)
 
 
 @pytest.fixture(scope="module")
 def env() -> Iterator[dict[str, Any]]:
   publisher = LoopbackPublisher()
-  model = PipelineModel(model="scripted-queue-model")
+  model = AppModel(model="scripted-queue-model")
   app = RunningApp(model, FakeBrowsers(), publisher=publisher, verifier=verifier)
   publisher.base_url = app.base
   admin = app.client()
@@ -104,8 +99,6 @@ def test_internal_endpoints_require_an_allowed_google_identity(env: dict[str, An
     assert client.post("/internal/events", json={}).status_code == 401
     assert client.post("/internal/events", json={}, headers={"Authorization": "Bearer forged"}).status_code == 401
     assert client.post("/internal/events", json={}, headers={"Authorization": "Bearer intruder-token"}).status_code == 403
-    poison = {"message": {"data": base64.b64encode(b"not json").decode()}}
-    assert client.post("/internal/pipeline", json=poison, headers={"Authorization": "Bearer push-token"}).status_code == 204
 
 
 def test_runs_are_queued_and_executed_by_the_worker(env: dict[str, Any]) -> None:
@@ -150,16 +143,3 @@ def test_runs_are_queued_and_executed_by_the_worker(env: dict[str, Any]) -> None
   after = admin.get(f"/api/testruns/{queued['id']}").json()
   assert after["status"] == "passed" and after["finishedAt"] == before["finishedAt"]
 
-
-def test_pipeline_stages_go_through_the_push_endpoint(env: dict[str, Any]) -> None:
-  admin, publisher, model, pid = env["admin"], env["publisher"], env["model"], env["project"]["id"]
-  model.analysis[:] = [{"kind": "acceptance_criterion", "code": "AC2", "text": "A wrong password shows an error message"}]
-  req = admin.post(f"/api/projects/{pid}/requirements", json={"title": "Wrong password", "text": "Show an error"}).json()
-  record = _wait_for(lambda: admin.get(f"/api/requirements/{req['id']}").json(), lambda r: r["status"] in ("completed", "failed"))
-  assert record["status"] == "completed", record["error"]
-  stages = [p["stage"] for t, p in publisher.messages if t.endswith("/pipeline") and p["requirementId"] == req["id"]]
-  assert stages == ["analyze", "search", "generate", "score"]
-
-  # A stale redelivery (the requirement is already completed) is ignored.
-  publisher.redeliver("projects/test/topics/pipeline", {"requirementId": req["id"], "stage": "analyze"})
-  assert admin.get(f"/api/requirements/{req['id']}").json()["status"] == "completed"
