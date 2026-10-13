@@ -7,8 +7,10 @@
     "packages/frontend"
   ],
   "scripts": {
+    "build:shared": "npm run build --workspace packages/shared",
     "dev:backend": "cd packages/backend && .venv/bin/python -m aegisqa.main",
-    "dev:frontend": "npm run dev --workspace packages/frontend",
+    "dev:frontend": "npm run build:shared && npm run dev --workspace packages/frontend",
+    "dev": "npm run dev:frontend",
     "adk:web": "cd packages/backend && .venv/bin/adk web adk_apps",
     "db:migrate": "cd packages/backend && .venv/bin/alembic upgrade head",
     "seed": "cd packages/backend && .venv/bin/python -m aegisqa.seed",
