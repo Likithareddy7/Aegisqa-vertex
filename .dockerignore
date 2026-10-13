@@ -1,0 +1,10 @@
+**/node_modules
+**/.venv
+**/.env
+**/data
+**/.next
+**/dist
+**/__pycache__
+**/*.egg-info
+.git
+packages/backend/tests

@@ -1,0 +1,30 @@
+# Dependencies & builds
+node_modules/
+.next/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# Local env files -- secrets never go to the repo (the *.env.example templates do)
+.env
+.env.*
+!.env.example
+
+# Local runtime data: screenshots, traces, videos, local databases
+packages/backend/data/
+packages/agents/data/
+*.db
+*.db-journal
+
+# Python
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.adk/
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
+.logs/

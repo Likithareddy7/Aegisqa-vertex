@@ -1,0 +1,26 @@
+{
+  "name": "ai-test-automation-tool",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/shared",
+    "packages/frontend"
+  ],
+  "scripts": {
+    "dev:backend": "cd packages/backend && .venv/bin/python -m aegisqa.main",
+    "dev:frontend": "npm run dev --workspace packages/frontend",
+    "adk:web": "cd packages/backend && .venv/bin/adk web adk_apps",
+    "db:migrate": "cd packages/backend && .venv/bin/alembic upgrade head",
+    "seed": "cd packages/backend && .venv/bin/python -m aegisqa.seed",
+    "seed:demo": "cd packages/backend && .venv/bin/python -m aegisqa.seed --demo",
+    "test:backend": "cd packages/backend && .venv/bin/python -m pytest",
+    "build": "npm run build --workspace packages/shared && npm run build --workspace packages/frontend",
+    "typecheck": "npm run typecheck --workspace packages/shared && npm run typecheck --workspace packages/frontend"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "@playwright/mcp": "^0.0.78"
+  }
+}
